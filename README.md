@@ -1,2 +1,3 @@
-"# key2xbox" 
-"# key2xbox" 
+# Virtual Xbox PTZ Controller for vMix
+
+Repositori ini berisi utilitas Python ringan yang berjalan di latar belakang (System Tray) Windows untuk mengubah input keyboard menjadi sinyal Virtual Xbox 360 Controller. Program ini dirancang khusus untuk memecahkan masalah kontrol kamera PTZ di aplikasi vMix, memungkinkan operator menggunakan keyboard fisik untuk menghasilkan pergerakan kamera yang mulus, mendukung arah diagonal, dan memiliki fitur berhenti otomatis saat tombol dilepas.

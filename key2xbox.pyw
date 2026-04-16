@@ -27,7 +27,6 @@ BTN_MAP = {
     "Y": vg.XUSB_BUTTON.XUSB_GAMEPAD_Y
 }
 
-# --- VARIABEL GLOBAL UNTUK KONTROL BACKGROUND ---
 is_running = True
 gamepad = None
 
@@ -52,14 +51,16 @@ def parse_percentage(val_input, raw_limit):
     except (ValueError, TypeError):
         return raw_limit 
 
-# --- FUNGSI UTAMA (BERJALAN DI BACKGROUND THREAD) ---
+# --- FUNGSI UTAMA ---
 def ptz_controller_loop():
     global is_running, gamepad
     
-    config_file = "config.json"
+    # FIX 1: Dapatkan path absolut dari folder tempat skrip ini berada
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    config_file = os.path.join(base_path, "config.json")
     
     if not os.path.exists(config_file):
-        print(f"Error: File {config_file} tidak ditemukan!")
+        # FIX 2: Hapus print(). Skrip berhenti diam-diam jika file tidak ada.
         is_running = False
         return
 
@@ -149,35 +150,28 @@ def ptz_controller_loop():
         gamepad.update()
         time.sleep(0.01)
         
-    # Jika is_running False (User klik Quit), matikan controller dengan aman
     if gamepad:
         gamepad.reset()
         gamepad.update()
 
-# --- FUNGSI UNTUK MENGGAMBAR IKON SYSTEM TRAY ---
 def create_image():
-    # Membuat gambar kotak hitam dengan lingkaran hijau di tengah (Indikator Aktif)
     image = Image.new('RGB', (64, 64), color='black')
     dc = ImageDraw.Draw(image)
     dc.ellipse((10, 10, 54, 54), fill='green')
     return image
 
-# --- AKSI SAAT TOMBOL QUIT DIKLIK ---
 def exit_action(icon, item):
     global is_running
-    is_running = False  # Menghentikan thread controller
-    icon.stop()         # Menutup System Tray
+    is_running = False  
+    icon.stop()         
 
 def main():
-    # 1. Jalankan fungsi PTZ di Background Thread
     ptz_thread = threading.Thread(target=ptz_controller_loop, daemon=True)
     ptz_thread.start()
 
-    # 2. Buat dan jalankan Menu System Tray di Main Thread
     tray_menu = pystray.Menu(item('Quit / Exit PTZ', exit_action))
     tray_icon = pystray.Icon("PTZController", create_image(), "vMix PTZ Controller", tray_menu)
     
-    # Perintah run() akan memblokir terminal, menjaganya tetap hidup di background
     tray_icon.run()
 
 if __name__ == "__main__":
