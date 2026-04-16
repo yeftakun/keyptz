@@ -1,0 +1,34 @@
+{
+    "modifier_key": "0",
+    "buttons": {
+        "DPAD_UP": "8",
+        "DPAD_DOWN": "2",
+        "DPAD_LEFT": "4",
+        "DPAD_RIGHT": "6",
+        "A": "",
+        "B": "",
+        "X": "",
+        "Y": "",
+        "LEFT_BUMPER": "",
+        "RIGHT_BUMPER": "",
+        "LEFT_THUMB_CLICK": "",
+        "RIGHT_THUMB_CLICK": "",
+        "BACK": "",
+        "START": "",
+        "GUIDE": ""
+    },
+    "triggers": {
+        "LEFT_TRIGGER": { "keys": ["q"], "value": "50%" },
+        "RIGHT_TRIGGER": { "keys": ["e"], "value": "100%" }
+    },
+    "joysticks": {
+        "LEFT_X_MIN": { "keys": [""], "value": "10%" },
+        "LEFT_X_MAX": { "keys": [""], "value": "10%" },
+        "LEFT_Y_MIN": { "keys": [""], "value": "10%" },
+        "LEFT_Y_MAX": { "keys": [""], "value": "10%" },
+        "RIGHT_X_MIN": { "keys": [""], "value": "100%" },
+        "RIGHT_X_MAX": { "keys": [""], "value": "100%" },
+        "RIGHT_Y_MIN": { "keys": ["-"], "value": "30%" },
+        "RIGHT_Y_MAX": { "keys": ["+"], "value": "30%" }
+    }
+}
