@@ -18,14 +18,14 @@
         "GUIDE": ""
     },
     "triggers": {
-        "LEFT_TRIGGER": { "keys": ["q"], "value": "50%" },
-        "RIGHT_TRIGGER": { "keys": ["e"], "value": "100%" }
+        "LEFT_TRIGGER": { "keys": [""], "value": "50%" },
+        "RIGHT_TRIGGER": { "keys": [""], "value": "50%" }
     },
     "joysticks": {
-        "LEFT_X_MIN": { "keys": [""], "value": "10%" },
-        "LEFT_X_MAX": { "keys": [""], "value": "10%" },
-        "LEFT_Y_MIN": { "keys": [""], "value": "10%" },
-        "LEFT_Y_MAX": { "keys": [""], "value": "10%" },
+        "LEFT_X_MIN": { "keys": [""], "value": "30%" },
+        "LEFT_X_MAX": { "keys": [""], "value": "30%" },
+        "LEFT_Y_MIN": { "keys": [""], "value": "30%" },
+        "LEFT_Y_MAX": { "keys": [""], "value": "30%" },
         "RIGHT_X_MIN": { "keys": [""], "value": "100%" },
         "RIGHT_X_MAX": { "keys": [""], "value": "100%" },
         "RIGHT_Y_MIN": { "keys": ["-"], "value": "30%" },
