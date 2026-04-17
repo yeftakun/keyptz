@@ -139,14 +139,23 @@ def ptz_controller_loop():
         joy_conf = config.get("joysticks", {})
 
         phys_state = get_physical_gamepad_state(virtual_slot)
-        kb_active = not mod_key or is_pressed(mod_key)
+        
+        # --- LOGIKA KOPLING GANDA (DUAL CLUTCH) ---
+        is_mod_pressed = is_pressed(mod_key)
+        is_boost_pressed = is_pressed(boost_key)
+        
+        # Keyboard aktif jika kopling 0 ditekan ATAU jika tidak ada kopling 0 yang disetting
+        kb_active_normal = not mod_key or is_mod_pressed
+        
+        # Keyboard JUGA aktif jika tombol boost/enter ditekan
+        kb_active = kb_active_normal or is_boost_pressed
         
         kb_btns = {}
         lx_kb, ly_kb, rx_kb, ry_kb, lt_kb, rt_kb = 0, 0, 0, 0, 0, 0
         
         if kb_active:
-            # Pengecekan status tombol Boost/Turbo
-            current_mult = boost_mult if is_pressed(boost_key) else 1.0
+            # Multiplier aktif BILA HANYA boost_key ditekan (atau ditekan bersamaan mod_key)
+            current_mult = boost_mult if is_boost_pressed else 1.0
 
             for xbox_btn, kb_key in btn_conf.items():
                 if is_pressed(kb_key) and BTN_MAP.get(xbox_btn):
@@ -220,7 +229,7 @@ def create_image():
     return image
 
 def open_github(icon, item):
-    webbrowser.open("https://github.com/yeftakun/key2xbox")
+    webbrowser.open("https://github.com/yeftakun/keyptz")
 
 def exit_action(icon, item):
     global is_running
