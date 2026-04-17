@@ -1,7 +1,7 @@
 {
     "modifier_key": "0",
     "boost_key": "enter",
-    "boost_multiplier": 2,
+    "boost_multiplier": 1.2,
     "buttons": {
         "DPAD_UP": "",
         "DPAD_DOWN": "",
@@ -24,10 +24,10 @@
         "RIGHT_TRIGGER": { "keys": [""], "value": "50%" }
     },
     "joysticks": {
-        "LEFT_X_MIN": { "keys": ["4"], "value": "30%" },
-        "LEFT_X_MAX": { "keys": ["6"], "value": "30%" },
-        "LEFT_Y_MIN": { "keys": ["2"], "value": "30%" },
-        "LEFT_Y_MAX": { "keys": ["8"], "value": "30%" },
+        "LEFT_X_MIN": { "keys": ["4"], "value": "26%" },
+        "LEFT_X_MAX": { "keys": ["6"], "value": "26%" },
+        "LEFT_Y_MIN": { "keys": ["2"], "value": "26%" },
+        "LEFT_Y_MAX": { "keys": ["8"], "value": "26%" },
         "RIGHT_X_MIN": { "keys": [""], "value": "100%" },
         "RIGHT_X_MAX": { "keys": [""], "value": "100%" },
         "RIGHT_Y_MIN": { "keys": ["-"], "value": "30%" },
