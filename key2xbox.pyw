@@ -5,12 +5,12 @@ import time
 import os
 import threading
 import ctypes
-import webbrowser  # Tambahan modul untuk membuka link web
+import webbrowser
 import pystray
 from pystray import MenuItem as item
 from PIL import Image, ImageDraw
 
-# --- 1. SETUP XINPUT API UNTUK MEMBACA STIK FISIK (NATIVE WINDOWS) ---
+# --- 1. SETUP XINPUT API UNTUK MEMBACA STIK FISIK ---
 xinput = None
 for dll in ('xinput1_4.dll', 'xinput9_1_0.dll', 'xinput1_3.dll'):
     try:
@@ -34,7 +34,6 @@ class XINPUT_STATE(ctypes.Structure):
     _fields_ = [("dwPacketNumber", ctypes.c_ulong), ("Gamepad", XINPUT_GAMEPAD)]
 
 def get_connected_slots():
-    """Mengembalikan list slot (0-3) gamepad yang sedang tercolok di PC"""
     connected = set()
     if not xinput: return connected
     for i in range(4):
@@ -44,13 +43,12 @@ def get_connected_slots():
     return connected
 
 def get_physical_gamepad_state(exclude_slot):
-    """Membaca stik fisik, MENGABAIKAN slot milik Virtual Gamepad kita"""
     if not xinput: return None
     for i in range(4):
         if i == exclude_slot: continue
         state = XINPUT_STATE()
         if xinput.XInputGetState(i, ctypes.byref(state)) == 0:
-            return state.Gamepad # Kembalikan input dari stik fisik pertama yang terdeteksi
+            return state.Gamepad
     return None
 
 # --- 2. MAPPING KONSTANTA XBOX ---
@@ -105,13 +103,9 @@ def ptz_controller_loop():
         is_running = False
         return
 
-    # Catat slot gamepad fisik yang sudah tertancap SEBELUM virtual dinyalakan
     physical_slots_before = get_connected_slots()
-
-    # Nyalakan Virtual Gamepad
     gamepad = vg.VX360Gamepad()
     
-    # Tunggu 1 detik agar OS meregistrasi virtual gamepad, lalu cari tahu letak Slot-nya
     time.sleep(1.0)
     current_slots = get_connected_slots()
     new_slots = current_slots - physical_slots_before
@@ -134,48 +128,58 @@ def ptz_controller_loop():
         except: pass 
 
         mod_key = config.get("modifier_key", "")
+        boost_key = config.get("boost_key", "")
+        try:
+            boost_mult = float(config.get("boost_multiplier", 1.0))
+        except:
+            boost_mult = 1.0
+
         btn_conf = config.get("buttons", {})
         trg_conf = config.get("triggers", {})
         joy_conf = config.get("joysticks", {})
 
-        # --- A. BACA STIK FISIK (PASS-THROUGH) ---
         phys_state = get_physical_gamepad_state(virtual_slot)
-
-        # --- B. BACA KEYBOARD (DENGAN KOPLING) ---
         kb_active = not mod_key or is_pressed(mod_key)
         
-        # Ekstrak data keyboard ke variabel lokal (Default 0/False jika tidak ditekan)
         kb_btns = {}
         lx_kb, ly_kb, rx_kb, ry_kb, lt_kb, rt_kb = 0, 0, 0, 0, 0, 0
         
         if kb_active:
-            # Buttons Keyboard
+            # Pengecekan status tombol Boost/Turbo
+            current_mult = boost_mult if is_pressed(boost_key) else 1.0
+
             for xbox_btn, kb_key in btn_conf.items():
                 if is_pressed(kb_key) and BTN_MAP.get(xbox_btn):
                     kb_btns[BTN_MAP[xbox_btn]] = True
                     
-            # Triggers Keyboard
             lt_key = trg_conf.get("LEFT_TRIGGER", {}).get("keys", "")
             if is_pressed(lt_key): lt_kb = parse_percentage(trg_conf.get("LEFT_TRIGGER", {}).get("value", "100%"), 255)
             
             rt_key = trg_conf.get("RIGHT_TRIGGER", {}).get("keys", "")
             if is_pressed(rt_key): rt_kb = parse_percentage(trg_conf.get("RIGHT_TRIGGER", {}).get("value", "100%"), 255)
 
-            # Left Joystick Keyboard
             if is_pressed(joy_conf.get("LEFT_X_MIN", {}).get("keys", "")): lx_kb = parse_percentage(joy_conf.get("LEFT_X_MIN", {}).get("value", "100%"), -32768)
             elif is_pressed(joy_conf.get("LEFT_X_MAX", {}).get("keys", "")): lx_kb = parse_percentage(joy_conf.get("LEFT_X_MAX", {}).get("value", "100%"), 32767)
+            
             if is_pressed(joy_conf.get("LEFT_Y_MIN", {}).get("keys", "")): ly_kb = parse_percentage(joy_conf.get("LEFT_Y_MIN", {}).get("value", "100%"), -32768)
             elif is_pressed(joy_conf.get("LEFT_Y_MAX", {}).get("keys", "")): ly_kb = parse_percentage(joy_conf.get("LEFT_Y_MAX", {}).get("value", "100%"), 32767)
 
-            # Right Joystick Keyboard
             if is_pressed(joy_conf.get("RIGHT_X_MIN", {}).get("keys", "")): rx_kb = parse_percentage(joy_conf.get("RIGHT_X_MIN", {}).get("value", "100%"), -32768)
             elif is_pressed(joy_conf.get("RIGHT_X_MAX", {}).get("keys", "")): rx_kb = parse_percentage(joy_conf.get("RIGHT_X_MAX", {}).get("value", "100%"), 32767)
+            
             if is_pressed(joy_conf.get("RIGHT_Y_MIN", {}).get("keys", "")): ry_kb = parse_percentage(joy_conf.get("RIGHT_Y_MIN", {}).get("value", "100%"), -32768)
             elif is_pressed(joy_conf.get("RIGHT_Y_MAX", {}).get("keys", "")): ry_kb = parse_percentage(joy_conf.get("RIGHT_Y_MAX", {}).get("value", "100%"), 32767)
 
+            # --- APLIKASIKAN BOOST MULTIPLIER & CLAMPING ---
+            lt_kb = min(255, int(lt_kb * current_mult))
+            rt_kb = min(255, int(rt_kb * current_mult))
+            
+            lx_kb = max(-32768, min(32767, int(lx_kb * current_mult)))
+            ly_kb = max(-32768, min(32767, int(ly_kb * current_mult)))
+            rx_kb = max(-32768, min(32767, int(rx_kb * current_mult)))
+            ry_kb = max(-32768, min(32767, int(ry_kb * current_mult)))
+
         # --- C. PENGGABUNGAN (MERGE) & UPDATE KE VIRTUAL GAMEPAD ---
-        
-        # Merge Buttons
         for btn_name, btn_val in BTN_MAP.items():
             is_phys = phys_state and (phys_state.wButtons & btn_val)
             if kb_btns.get(btn_val) or is_phys:
@@ -183,13 +187,11 @@ def ptz_controller_loop():
             else:
                 gamepad.release_button(button=btn_val)
 
-        # Merge Triggers (Ambil nilai terbesar)
         lt_phys = phys_state.bLeftTrigger if phys_state else 0
         rt_phys = phys_state.bRightTrigger if phys_state else 0
         gamepad.left_trigger(value=max(lt_kb, lt_phys))
         gamepad.right_trigger(value=max(rt_kb, rt_phys))
 
-        # Merge Joysticks (Ditambahkan, lalu dibatasi agar tidak tembus limit)
         lx_phys = phys_state.sThumbLX if phys_state else 0
         ly_phys = phys_state.sThumbLY if phys_state else 0
         rx_phys = phys_state.sThumbRX if phys_state else 0
@@ -218,7 +220,6 @@ def create_image():
     return image
 
 def open_github(icon, item):
-    # Membuka link repositori GitHub kamu di browser default
     webbrowser.open("https://github.com/yeftakun/key2xbox")
 
 def exit_action(icon, item):
@@ -230,7 +231,6 @@ def main():
     ptz_thread = threading.Thread(target=ptz_controller_loop, daemon=True)
     ptz_thread.start()
 
-    # Menambahkan menu GitHub sebelum tombol Quit
     tray_menu = pystray.Menu(
         item('GitHub Repository', open_github),
         item('Quit / Exit PTZ', exit_action)
