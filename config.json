@@ -1,10 +1,10 @@
 {
     "modifier_key": "0",
     "buttons": {
-        "DPAD_UP": "8",
-        "DPAD_DOWN": "2",
-        "DPAD_LEFT": "4",
-        "DPAD_RIGHT": "6",
+        "DPAD_UP": "",
+        "DPAD_DOWN": "",
+        "DPAD_LEFT": "",
+        "DPAD_RIGHT": "",
         "A": "Tab",
         "B": "",
         "X": "",
@@ -22,10 +22,10 @@
         "RIGHT_TRIGGER": { "keys": [""], "value": "50%" }
     },
     "joysticks": {
-        "LEFT_X_MIN": { "keys": [""], "value": "30%" },
-        "LEFT_X_MAX": { "keys": [""], "value": "30%" },
-        "LEFT_Y_MIN": { "keys": [""], "value": "30%" },
-        "LEFT_Y_MAX": { "keys": [""], "value": "30%" },
+        "LEFT_X_MIN": { "keys": ["4"], "value": "30%" },
+        "LEFT_X_MAX": { "keys": ["6"], "value": "30%" },
+        "LEFT_Y_MIN": { "keys": ["2"], "value": "30%" },
+        "LEFT_Y_MAX": { "keys": ["8"], "value": "30%" },
         "RIGHT_X_MIN": { "keys": [""], "value": "100%" },
         "RIGHT_X_MAX": { "keys": [""], "value": "100%" },
         "RIGHT_Y_MIN": { "keys": ["-"], "value": "30%" },
