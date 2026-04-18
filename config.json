@@ -1,5 +1,5 @@
 {
-    "hold_control": true,
+    "hold_control": false,
     "modifier_key": "0",
     "boost_key": "enter",
     "boost_multiplier": 1.2,
@@ -8,30 +8,80 @@
         "DPAD_DOWN": "",
         "DPAD_LEFT": "",
         "DPAD_RIGHT": "",
+        "START": "",
+        "BACK": "",
+        "LEFT_THUMB_CLICK": "",
+        "RIGHT_THUMB_CLICK": "",
+        "LEFT_BUMPER": "",
+        "RIGHT_BUMPER": "",
+        "GUIDE": "",
         "A": "Tab",
         "B": "",
         "X": "",
-        "Y": "",
-        "LEFT_BUMPER": "",
-        "RIGHT_BUMPER": "",
-        "LEFT_THUMB_CLICK": "",
-        "RIGHT_THUMB_CLICK": "",
-        "BACK": "",
-        "START": "",
-        "GUIDE": ""
+        "Y": ""
     },
     "triggers": {
-        "LEFT_TRIGGER": { "keys": [""], "value": "50%" },
-        "RIGHT_TRIGGER": { "keys": [""], "value": "50%" }
+        "LEFT_TRIGGER": {
+            "keys": [
+                ""
+            ],
+            "value": "26"
+        },
+        "RIGHT_TRIGGER": {
+            "keys": [
+                ""
+            ],
+            "value": "26"
+        }
     },
     "joysticks": {
-        "LEFT_X_MIN": { "keys": ["4"], "value": "26%" },
-        "LEFT_X_MAX": { "keys": ["6"], "value": "26%" },
-        "LEFT_Y_MIN": { "keys": ["2"], "value": "26%" },
-        "LEFT_Y_MAX": { "keys": ["8"], "value": "26%" },
-        "RIGHT_X_MIN": { "keys": [""], "value": "100%" },
-        "RIGHT_X_MAX": { "keys": [""], "value": "100%" },
-        "RIGHT_Y_MIN": { "keys": ["-"], "value": "30%" },
-        "RIGHT_Y_MAX": { "keys": ["+"], "value": "30%" }
+        "LEFT_X_MIN": {
+            "keys": [
+                "4"
+            ],
+            "value": "26"
+        },
+        "LEFT_X_MAX": {
+            "keys": [
+                "6"
+            ],
+            "value": "26"
+        },
+        "LEFT_Y_MIN": {
+            "keys": [
+                "2"
+            ],
+            "value": "26"
+        },
+        "LEFT_Y_MAX": {
+            "keys": [
+                "8"
+            ],
+            "value": "26"
+        },
+        "RIGHT_X_MIN": {
+            "keys": [
+                ""
+            ],
+            "value": "26"
+        },
+        "RIGHT_X_MAX": {
+            "keys": [
+                ""
+            ],
+            "value": "26"
+        },
+        "RIGHT_Y_MIN": {
+            "keys": [
+                "-"
+            ],
+            "value": "26"
+        },
+        "RIGHT_Y_MAX": {
+            "keys": [
+                "+"
+            ],
+            "value": "26"
+        }
     }
 }

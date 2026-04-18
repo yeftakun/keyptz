@@ -11,6 +11,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from pystray import MenuItem as item
 from PIL import Image, ImageDraw
+import glob
 
 # --- 1. SETUP XINPUT API ---
 xinput = None
@@ -238,20 +239,23 @@ def ptz_controller_loop():
         gamepad.reset()
         gamepad.update()
 
-
-# --- 5. GUI EDITOR (TKINTER) ---
+# --- 5. GUI EDITOR DENGAN PROFILE SYSTEM ---
 def config_gui_thread():
     global is_gui_open
     
     base_path = os.path.dirname(os.path.abspath(__file__))
     config_file = os.path.join(base_path, "config.json")
+    profile_dir = os.path.join(base_path, "profile")
+    
+    # Pastikan folder profile ada
+    os.makedirs(profile_dir, exist_ok=True)
     
     with open(config_file, "r") as f:
         cfg = json.load(f)
 
     root = tk.Tk()
-    root.title("KeyPTZ - Config Editor")
-    root.geometry("400x550")
+    root.title("KeyPTZ - Config & Profile Editor")
+    root.geometry("450x550")
     root.resizable(False, False)
     root.attributes("-topmost", True)
 
@@ -317,23 +321,40 @@ def config_gui_thread():
     
     for i, (name, data) in enumerate(analog_items):
         ttk.Label(f_analog, text=name).grid(row=i+2, column=0, sticky="w", padx=5, pady=2)
-        
-        # Join list of keys into a comma-separated string for display
         keys_str = ", ".join(data.get("keys", [""]))
         var_keys = tk.StringVar(value=keys_str)
         ttk.Entry(f_analog, textvariable=var_keys, width=15).grid(row=i+2, column=1, padx=5, pady=2)
         
         var_val = tk.StringVar(value=data.get("value", "100%"))
         ttk.Entry(f_analog, textvariable=var_val, width=8).grid(row=i+2, column=2, padx=5, pady=2)
-        
         analog_vars[name] = {"keys": var_keys, "value": var_val}
 
-    def save_and_close():
-        global is_gui_open
-        try:
-            mult_val = float(v_mult.get())
-        except:
-            mult_val = 1.0
+    # --- TAB PROFILES ---
+    f_prof = ttk.Frame(notebook)
+    notebook.add(f_prof, text="Profiles")
+    
+    ttk.Label(f_prof, text="Available Profiles:", font=("", 10, "bold")).pack(anchor="w", padx=10, pady=(10,0))
+    
+    listbox_frame = ttk.Frame(f_prof)
+    listbox_frame.pack(fill="both", expand=True, padx=10, pady=5)
+    profile_listbox = tk.Listbox(listbox_frame, height=8)
+    profile_listbox.pack(side="left", fill="both", expand=True)
+    listbox_scroll = ttk.Scrollbar(listbox_frame, orient="vertical", command=profile_listbox.yview)
+    listbox_scroll.pack(side="right", fill="y")
+    profile_listbox.config(yscrollcommand=listbox_scroll.set)
+
+    def refresh_profile_list():
+        profile_listbox.delete(0, tk.END)
+        for file in os.listdir(profile_dir):
+            if file.endswith(".json"):
+                profile_listbox.insert(tk.END, file)
+
+    refresh_profile_list()
+
+    def get_current_gui_state():
+        """Mengambil semua nilai dari form GUI saat ini menjadi Dictionary JSON"""
+        try: mult_val = float(v_mult.get())
+        except: mult_val = 1.0
 
         new_cfg = {
             "hold_control": v_hold.get(),
@@ -344,17 +365,86 @@ def config_gui_thread():
             "triggers": {},
             "joysticks": {}
         }
-
-        # Parse Analog back to arrays
         for name, vars_dict in analog_vars.items():
             keys_list = [k.strip() for k in vars_dict["keys"].get().split(',')]
             if not keys_list or keys_list == [""]: keys_list = [""]
-            
             data = {"keys": keys_list, "value": vars_dict["value"].get().strip()}
-            if "TRIGGER" in name:
-                new_cfg["triggers"][name] = data
-            else:
-                new_cfg["joysticks"][name] = data
+            if "TRIGGER" in name: new_cfg["triggers"][name] = data
+            else: new_cfg["joysticks"][name] = data
+        return new_cfg
+
+    def load_selected_profile():
+        sel = profile_listbox.curselection()
+        if not sel:
+            messagebox.showwarning("Pilih Profile", "Pilih profile dari daftar terlebih dahulu!")
+            return
+        
+        p_name = profile_listbox.get(sel[0])
+        p_path = os.path.join(profile_dir, p_name)
+        
+        with open(p_path, "r") as f:
+            p_cfg = json.load(f)
+
+        # Update GUI Variables
+        v_hold.set(p_cfg.get("hold_control", False))
+        v_mod.set(p_cfg.get("modifier_key", ""))
+        v_boost.set(p_cfg.get("boost_key", ""))
+        v_mult.set(str(p_cfg.get("boost_multiplier", 1.2)))
+
+        for btn in BTN_MAP.keys():
+            val = p_cfg.get("buttons", {}).get(btn, "")
+            btn_vars[btn].set(val)
+
+        for name, vars_dict in analog_vars.items():
+            if "TRIGGER" in name: data = p_cfg.get("triggers", {}).get(name, {})
+            else: data = p_cfg.get("joysticks", {}).get(name, {})
+            
+            keys_str = ", ".join(data.get("keys", [""]))
+            vars_dict["keys"].set(keys_str)
+            vars_dict["value"].set(data.get("value", "100%"))
+
+        messagebox.showinfo("Profile Dimuat", f"Profile '{p_name}' telah dimuat ke editor.\nKlik 'Save & Apply' untuk menggunakannya di vMix.")
+
+    def save_as_new_profile():
+        p_name = entry_new_prof.get().strip()
+        if not p_name:
+            messagebox.showwarning("Nama Kosong", "Masukkan nama profile baru!")
+            return
+        if not p_name.lower().endswith(".json"):
+            p_name += ".json"
+            
+        p_path = os.path.join(profile_dir, p_name)
+        new_cfg = get_current_gui_state()
+        
+        with open(p_path, "w") as f:
+            json.dump(new_cfg, f, indent=4)
+            
+        entry_new_prof.delete(0, tk.END)
+        refresh_profile_list()
+        messagebox.showinfo("Tersimpan", f"Profile disimpan sebagai '{p_name}' di folder profile.")
+
+    def delete_selected_profile():
+        sel = profile_listbox.curselection()
+        if not sel: return
+        p_name = profile_listbox.get(sel[0])
+        if messagebox.askyesno("Konfirmasi Hapus", f"Apakah Anda yakin ingin menghapus profile '{p_name}'?"):
+            os.remove(os.path.join(profile_dir, p_name))
+            refresh_profile_list()
+
+    ttk.Button(f_prof, text="Load Selected Profile to Editor", command=load_selected_profile).pack(fill="x", padx=10, pady=2)
+    ttk.Button(f_prof, text="Delete Selected Profile", command=delete_selected_profile).pack(fill="x", padx=10, pady=2)
+    
+    ttk.Separator(f_prof, orient='horizontal').pack(fill='x', pady=15, padx=10)
+    
+    ttk.Label(f_prof, text="Save Current Editor as New Profile:").pack(anchor="w", padx=10)
+    entry_new_prof = ttk.Entry(f_prof)
+    entry_new_prof.pack(fill="x", padx=10, pady=2)
+    ttk.Button(f_prof, text="Save As New Profile", command=save_as_new_profile).pack(fill="x", padx=10, pady=2)
+
+    # --- SAVE BUTTON GLOBAL ---
+    def save_and_close():
+        global is_gui_open
+        new_cfg = get_current_gui_state()
 
         with open(config_file, "w") as f:
             json.dump(new_cfg, f, indent=4)
@@ -362,18 +452,15 @@ def config_gui_thread():
         is_gui_open = False
         root.destroy()
         
-        # Show success alert from a temporary invisible root
         msg_root = tk.Tk(); msg_root.withdraw(); msg_root.attributes("-topmost", True)
-        messagebox.showinfo("Tersimpan", "Config berhasil disimpan! Script otomatis memuat ulang (Hot-Reload).")
+        messagebox.showinfo("Tersimpan", "Config Active berhasil diperbarui!\n(Hot-Reload menyala)")
         msg_root.destroy()
 
-    # Save Button
     f_btn_bot = ttk.Frame(root)
     f_btn_bot.pack(fill="x", side="bottom", pady=10)
-    ttk.Button(f_btn_bot, text="Save & Apply", command=save_and_close).pack(pady=5)
+    ttk.Button(f_btn_bot, text="Save & Apply (Active Config)", command=save_and_close).pack(pady=5)
 
     root.mainloop()
-
 
 # --- 6. SYSTEM TRAY UI & PENCEGAH MULTIPLE INSTANCE ---
 def show_startup_alert():
