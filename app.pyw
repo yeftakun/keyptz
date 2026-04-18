@@ -75,7 +75,7 @@ BTN_MAP = {
 is_running = True
 gamepad = None
 
-# --- 3. FUNGSI UTILITAS ---
+# --- 3. FUNGSI UTILITAS & UI ---
 def is_pressed(key_input):
     if not key_input: return False
     try:
@@ -95,11 +95,17 @@ def parse_percentage(val_input, raw_limit):
         return raw_limit 
 
 def show_startup_alert():
-    # Menampilkan Jendela Dialog Native Windows
     root = tk.Tk()
-    root.withdraw() # Menyembunyikan jendela utama
-    root.attributes("-topmost", True) # Memastikan dialog muncul paling depan
+    root.withdraw()
+    root.attributes("-topmost", True)
     messagebox.showinfo("Sukses", "KeyPTZ berjalan")
+    root.destroy()
+
+def show_already_running_alert():
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
+    messagebox.showwarning("Peringatan", "KeyPTZ sebelumnya sudah berjalan")
     root.destroy()
 
 # --- 4. FUNGSI UTAMA (BACKGROUND PROCESS) ---
@@ -124,13 +130,11 @@ def ptz_controller_loop():
     last_modified_time = os.path.getmtime(config_file)
     with open(config_file, "r") as f: config = json.load(f)
 
-    # Variabel memori untuk fitur "Hold Control"
     latched_lx, latched_ly, latched_rx, latched_ry = 0, 0, 0, 0
     latched_lt, latched_rt = 0, 0
     latched_btns = set()
 
     while is_running:
-        # --- HOT RELOAD CONFIG ---
         try:
             current_modified_time = os.path.getmtime(config_file)
             if current_modified_time > last_modified_time:
@@ -165,7 +169,6 @@ def ptz_controller_loop():
         if kb_active:
             current_mult = boost_mult if is_boost_pressed else 1.0
 
-            # 1. Baca Input Real-Time dari Keyboard
             cur_btns = set()
             for xbox_btn, kb_key in btn_conf.items():
                 if is_pressed(kb_key) and BTN_MAP.get(xbox_btn):
@@ -188,7 +191,6 @@ def ptz_controller_loop():
             if is_pressed(joy_conf.get("RIGHT_Y_MIN", {}).get("keys", "")): cur_ry = parse_percentage(joy_conf.get("RIGHT_Y_MIN", {}).get("value", "100%"), -32768)
             elif is_pressed(joy_conf.get("RIGHT_Y_MAX", {}).get("keys", "")): cur_ry = parse_percentage(joy_conf.get("RIGHT_Y_MAX", {}).get("value", "100%"), 32767)
 
-            # 2. Logika "Cruise Control" (Hold Control)
             if hold_ctrl:
                 if cur_btns: latched_btns.update(cur_btns)
                 if cur_lt != 0: latched_lt = cur_lt
@@ -203,7 +205,6 @@ def ptz_controller_loop():
                 latched_lx, latched_ly = cur_lx, cur_ly
                 latched_rx, latched_ry = cur_rx, cur_ry
 
-            # 3. Aplikasikan Multiplier Boost pada nilai yang terkunci
             lt_kb = min(255, int(latched_lt * current_mult))
             rt_kb = min(255, int(latched_rt * current_mult))
             
@@ -213,13 +214,11 @@ def ptz_controller_loop():
             ry_kb = max(-32768, min(32767, int(latched_ry * current_mult)))
 
         else:
-            # Jika kopling dilepas, RESET semua memori "Cruise Control"
             latched_btns.clear()
             latched_lt, latched_rt = 0, 0
             latched_lx, latched_ly, latched_rx, latched_ry = 0, 0, 0, 0
             lx_kb, ly_kb, rx_kb, ry_kb, lt_kb, rt_kb = 0, 0, 0, 0, 0, 0
 
-        # --- C. PENGGABUNGAN (MERGE) & UPDATE KE VIRTUAL GAMEPAD ---
         for btn_name, btn_val in BTN_MAP.items():
             is_phys = phys_state and (phys_state.wButtons & btn_val)
             if (btn_val in latched_btns) or is_phys:
@@ -252,7 +251,7 @@ def ptz_controller_loop():
         gamepad.reset()
         gamepad.update()
 
-# --- 5. SYSTEM TRAY UI ---
+# --- 5. SYSTEM TRAY UI & PENCEGAH MULTIPLE INSTANCE ---
 def create_image():
     image = Image.new('RGB', (64, 64), color='black')
     dc = ImageDraw.Draw(image)
@@ -267,10 +266,35 @@ def exit_action(icon, item):
     is_running = False  
     icon.stop()         
 
+def check_single_instance():
+    """Mengecek apakah aplikasi sudah berjalan menggunakan Windows Mutex"""
+    # Nama unik untuk Mutex, pastikan spesifik untuk aplikasimu
+    mutex_name = "KeyPTZ_vMix_Controller_Mutex_12345"
+    kernel32 = ctypes.windll.kernel32
+    
+    # Mencoba membuat Mutex
+    mutex = kernel32.CreateMutexW(None, False, mutex_name)
+    last_error = kernel32.GetLastError()
+    
+    # ERROR_ALREADY_EXISTS di Windows memiliki kode error 183
+    if last_error == 183:
+        return False, None
+        
+    return True, mutex
+
 def main():
-    # Tampilkan pesan Alert sebelum program masuk ke Background Thread
+    # 1. Cek apakah ini satu-satunya instance yang berjalan
+    is_first_instance, mutex = check_single_instance()
+    
+    if not is_first_instance:
+        # Jika sudah berjalan, tampilkan peringatan dan langsung matikan proses ini
+        show_already_running_alert()
+        return
+
+    # 2. Jika aman, tampilkan pesan sukses
     show_startup_alert()
 
+    # 3. Jalankan aplikasi seperti biasa
     ptz_thread = threading.Thread(target=ptz_controller_loop, daemon=True)
     ptz_thread.start()
 
