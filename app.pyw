@@ -223,13 +223,16 @@ def ptz_controller_loop():
                 if cur_btns: latched_btns.update(cur_btns)
                 
                 if cur_lt != 0 or cur_rt != 0:
-                    latched_lt, latched_rt = cur_lt, cur_rt
+                    latched_lt = cur_lt
+                    latched_rt = cur_rt
                     
                 if cur_lx != 0 or cur_ly != 0:
-                    latched_lx, latched_ly = cur_lx, cur_ly
+                    latched_lx = cur_lx
+                    latched_ly = cur_ly
                     
                 if cur_rx != 0 or cur_ry != 0:
-                    latched_rx, latched_ry = cur_rx, cur_ry
+                    latched_rx = cur_rx
+                    latched_ry = cur_ry
             else:
                 latched_btns = cur_btns
                 latched_lt, latched_rt = cur_lt, cur_rt
@@ -376,22 +379,31 @@ def config_gui_thread():
         root.destroy()
     root.protocol("WM_DELETE_WINDOW", on_closing)
 
+    # --- FUNGSI VALIDASI INPUT PERSENTASE (0-100) ---
+    def validate_percent_input(P):
+        if P == "": return True # Mengizinkan kotak kosong sementara saat diedit
+        val_str = P.replace('%', '').strip()
+        if val_str == "": return True # Mengizinkan hanya tanda %
+        try:
+            val = float(val_str)
+            return 0 <= val <= 100 # Hanya lolos jika angka antara 0 dan 100
+        except ValueError:
+            return False # Jika huruf/simbol lain ditekan, blokir
+
+    # Mendaftarkan fungsi validasi ke root Tkinter
+    vcmd_pct = (root.register(validate_percent_input), '%P')
+
     notebook = ttk.Notebook(root)
     notebook.pack(fill='both', expand=True, padx=10, pady=10)
     
-    # Area untuk Tombol Save dan Label Peringatan
     f_btn_bot = ttk.Frame(root)
     f_btn_bot.pack(fill="x", side="bottom", pady=10)
     
     lbl_warning = tk.Label(f_btn_bot, text="⚠️ Ada tombol xbox yang memakai keyboard yang sama!", fg="red", font=("", 9, "bold"))
-    # lbl_warning tidak di-pack dulu. Akan muncul jika ada duplicate.
 
-    # Array penyimpan (StringVar, tk.Entry widget, is_list) untuk cek duplikat
     mapping_entries = []
 
-    # Fungsi Pengecek Duplikat
     def check_duplicates(*args):
-        # 1. Hitung frekuensi tombol
         key_counts = {}
         for var, widget, is_list in mapping_entries:
             val = var.get().strip()
@@ -402,7 +414,6 @@ def config_gui_thread():
                 if k: key_counts[k] = key_counts.get(k, 0) + 1
                 
         has_dup = False
-        # 2. Update warna UI
         for var, widget, is_list in mapping_entries:
             val = var.get().strip()
             is_dup = False
@@ -414,14 +425,12 @@ def config_gui_thread():
                         is_dup = True
                         break
             
-            # Ubah warna background dan teks khusus untuk tk.Entry
             if is_dup:
                 widget.configure(readonlybackground="#ffcccc", fg="red")
                 has_dup = True
             else:
                 widget.configure(readonlybackground="white", fg="black")
                 
-        # 3. Tampilkan/Sembunyikan peringatan
         if has_dup:
             lbl_warning.pack(side="top", pady=(0, 5))
         else:
@@ -475,13 +484,12 @@ def config_gui_thread():
         
         val = cfg.get("buttons", {}).get(btn, "")
         var = tk.StringVar(value=val)
-        var.trace_add("write", check_duplicates) # Pasang tracker
+        var.trace_add("write", check_duplicates)
         btn_vars[btn] = var
         
         f_b = ttk.Frame(scrollable_frame)
         f_b.grid(row=i, column=1, sticky="w", padx=5)
         
-        # Menggunakan tk.Entry (bukan ttk.Entry) agar bisa diwarnai background-nya
         e = tk.Entry(f_b, textvariable=var, width=20, state="readonly", readonlybackground="white", fg="black", relief="solid", bd=1)
         e.pack(side="left", padx=2, ipady=2)
         mapping_entries.append((var, e, False))
@@ -505,7 +513,7 @@ def config_gui_thread():
         
         keys_str = ", ".join(data.get("keys", [""]))
         var_keys = tk.StringVar(value=keys_str)
-        var_keys.trace_add("write", check_duplicates) # Pasang tracker
+        var_keys.trace_add("write", check_duplicates)
         
         var_val = tk.StringVar(value=data.get("value", "100%"))
         analog_vars[name] = {"keys": var_keys, "value": var_val}
@@ -513,7 +521,6 @@ def config_gui_thread():
         f_a = ttk.Frame(f_analog)
         f_a.grid(row=i+2, column=1, sticky="w", padx=5)
         
-        # Menggunakan tk.Entry agar bisa diwarnai
         e = tk.Entry(f_a, textvariable=var_keys, width=16, state="readonly", readonlybackground="white", fg="black", relief="solid", bd=1)
         e.pack(side="left", padx=2, ipady=2)
         mapping_entries.append((var_keys, e, True))
@@ -522,7 +529,8 @@ def config_gui_thread():
         ttk.Button(f_a, text="+", width=2, command=lambda v=var_keys: assigner.start(v, append=True)).pack(side="left")
         ttk.Button(f_a, text="X", width=2, command=lambda v=var_keys: v.set("")).pack(side="left")
         
-        ttk.Entry(f_analog, textvariable=var_val, width=8).grid(row=i+2, column=2, padx=5, pady=2)
+        # Menerapkan validasi ke Entry Value %
+        ttk.Entry(f_analog, textvariable=var_val, width=8, validate="key", validatecommand=vcmd_pct).grid(row=i+2, column=2, padx=5, pady=2)
 
     def update_gui_from_dict(p_cfg, alert_name="Profile"):
         v_hold.set(p_cfg.get("hold_control", False))
@@ -542,7 +550,7 @@ def config_gui_thread():
             vars_dict["keys"].set(keys_str)
             vars_dict["value"].set(data.get("value", "100%"))
 
-        check_duplicates() # Cek duplikat setiap kali profile baru di-load
+        check_duplicates() 
         messagebox.showinfo("Dimuat", f"'{alert_name}' telah dimuat ke editor.\nKlik 'Save & Apply' untuk mengaktifkannya.")
 
     def load_default_profile():
@@ -665,11 +673,9 @@ def config_gui_thread():
         messagebox.showinfo("Tersimpan", "Config Active berhasil diperbarui!\n(Hot-Reload menyala)")
         msg_root.destroy()
 
-    # Pack tombol Save di bawah label peringatan
     btn_save = ttk.Button(f_btn_bot, text="Save & Apply (Active Config)", command=save_and_close)
     btn_save.pack(pady=5)
     
-    # Panggil cek awal untuk mewarnai data yang kebetulan sudah duplicate dari awal
     check_duplicates()
 
     root.mainloop()
@@ -692,7 +698,7 @@ def create_image():
     return image
 
 def open_github(icon, item):
-    webbrowser.open("https://github.com/yeftakun/key2xbox")
+    webbrowser.open("https://github.com/yeftakun/keyptz")
 
 def open_config(icon, item):
     global is_gui_open
@@ -726,9 +732,9 @@ def main():
     ptz_thread.start()
 
     tray_menu = pystray.Menu(
-        item('Config / Edit JSON', open_config),
-        item('GitHub Repository', open_github),
-        item('Quit / Exit', exit_action)
+        item('Config', open_config),
+        item('GitHub', open_github),
+        item('Exit', exit_action)
     )
     tray_icon = pystray.Icon("PTZController", create_image(), "vMix PTZ Controller", tray_menu)
     tray_icon.run()
