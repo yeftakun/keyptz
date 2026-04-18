@@ -76,7 +76,7 @@ DEFAULT_PROFILE = {
     "hold_control": False,
     "modifier_key": "0",
     "boost_key": "enter",
-    "boost_multiplier": 1.2,
+    "boost_multiplier": 1.3,
     "buttons": {
         "DPAD_UP": "", "DPAD_DOWN": "", "DPAD_LEFT": "", "DPAD_RIGHT": "",
         "START": "", "BACK": "", "LEFT_THUMB_CLICK": "", "RIGHT_THUMB_CLICK": "",
@@ -94,8 +94,8 @@ DEFAULT_PROFILE = {
         "LEFT_Y_MAX": { "keys": ["8"], "value": "26" },
         "RIGHT_X_MIN": { "keys": [""], "value": "26" },
         "RIGHT_X_MAX": { "keys": [""], "value": "26" },
-        "RIGHT_Y_MIN": { "keys": ["-"], "value": "26" },
-        "RIGHT_Y_MAX": { "keys": ["+"], "value": "26" }
+        "RIGHT_Y_MIN": { "keys": ["-"], "value": "50" },
+        "RIGHT_Y_MAX": { "keys": ["+"], "value": "50" }
     }
 }
 

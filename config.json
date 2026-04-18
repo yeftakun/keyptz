@@ -2,7 +2,7 @@
     "hold_control": false,
     "modifier_key": "0",
     "boost_key": "enter",
-    "boost_multiplier": 1.2,
+    "boost_multiplier": 1.3,
     "buttons": {
         "DPAD_UP": "",
         "DPAD_DOWN": "",
@@ -75,13 +75,13 @@
             "keys": [
                 "-"
             ],
-            "value": "26"
+            "value": "50"
         },
         "RIGHT_Y_MAX": {
             "keys": [
                 "+"
             ],
-            "value": "26"
+            "value": "50"
         }
     }
 }
