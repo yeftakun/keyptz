@@ -223,16 +223,13 @@ def ptz_controller_loop():
                 if cur_btns: latched_btns.update(cur_btns)
                 
                 if cur_lt != 0 or cur_rt != 0:
-                    latched_lt = cur_lt
-                    latched_rt = cur_rt
+                    latched_lt, latched_rt = cur_lt, cur_rt
                     
                 if cur_lx != 0 or cur_ly != 0:
-                    latched_lx = cur_lx
-                    latched_ly = cur_ly
+                    latched_lx, latched_ly = cur_lx, cur_ly
                     
                 if cur_rx != 0 or cur_ry != 0:
-                    latched_rx = cur_rx
-                    latched_ry = cur_ry
+                    latched_rx, latched_ry = cur_rx, cur_ry
             else:
                 latched_btns = cur_btns
                 latched_lt, latched_rt = cur_lt, cur_rt
@@ -286,7 +283,81 @@ def ptz_controller_loop():
         gamepad.update()
 
 
-# --- 5. GUI EDITOR DENGAN PROFILE SYSTEM ---
+# --- 5. GUI EDITOR DENGAN KEY CATCHER & PROFILE SYSTEM ---
+
+class KeyAssigner:
+    """Kelas untuk menangani penangkapan tombol keyboard selama 5 detik"""
+    def __init__(self, root):
+        self.root = root
+        self.hook = None
+        self.timeout_id = None
+        self.target_var = None
+        self.is_append = False
+        self.old_val = ""
+
+    def start(self, var, append=False):
+        self.cancel() # Batalkan penangkapan sebelumnya jika ada
+        self.target_var = var
+        self.is_append = append
+        self.old_val = var.get()
+        
+        var.set("< Menunggu 5d... >")
+        
+        # Jeda mikro agar klik mouse/tombol sebelumnya tidak ikut tertangkap
+        self.root.after(200, self._start_hook)
+        # Mulai hitung mundur 5 detik
+        self.timeout_id = self.root.after(5000, self._timeout)
+
+    def _start_hook(self):
+        self.captured = False
+        self.hook = keyboard.on_press(self._on_press)
+
+    def _on_press(self, event):
+        if self.captured: return
+        self.captured = True
+        # Lempar kembali ke GUI Thread agar aman
+        self.root.after(0, self._finish, event.name)
+
+    def _finish(self, key_name):
+        self._cleanup()
+        
+        # Jika tombol Escape ditekan, batalkan pengisian
+        if key_name.lower() == 'esc':
+            self.target_var.set(self.old_val)
+            return
+
+        # Format Append (Multiple Keys) atau Replace
+        if self.is_append and self.old_val:
+            existing = [k.strip() for k in self.old_val.split(',')]
+            if key_name not in existing:
+                self.target_var.set(self.old_val + f", {key_name}")
+            else:
+                self.target_var.set(self.old_val)
+        else:
+            self.target_var.set(key_name)
+
+    def _timeout(self):
+        self._cleanup()
+        self.target_var.set(self.old_val)
+        messagebox.showinfo("Timeout", "Waktu habis! Tidak ada tombol yang ditekan.")
+
+    def _cleanup(self):
+        if self.hook:
+            try:
+                keyboard.unhook(self.hook)
+            except: pass
+            self.hook = None
+        if self.timeout_id:
+            self.root.after_cancel(self.timeout_id)
+            self.timeout_id = None
+
+    def cancel(self):
+        if self.target_var:
+            self._cleanup()
+            self.target_var.set(self.old_val)
+            self.target_var = None
+
+
 def config_gui_thread():
     global is_gui_open
     
@@ -301,12 +372,15 @@ def config_gui_thread():
 
     root = tk.Tk()
     root.title("KeyPTZ - Config & Profile Editor")
-    root.geometry("450x550")
+    root.geometry("560x580") # Diperlebar sedikit untuk tombol baru
     root.resizable(False, False)
     root.attributes("-topmost", True)
+    
+    assigner = KeyAssigner(root)
 
     def on_closing():
         global is_gui_open
+        assigner.cancel()
         is_gui_open = False
         root.destroy()
     root.protocol("WM_DELETE_WINDOW", on_closing)
@@ -314,7 +388,7 @@ def config_gui_thread():
     notebook = ttk.Notebook(root)
     notebook.pack(fill='both', expand=True, padx=10, pady=10)
 
-    # Variables for General
+    # --- TAB GENERAL ---
     v_hold = tk.BooleanVar(value=cfg.get("hold_control", False))
     v_mod = tk.StringVar(value=cfg.get("modifier_key", ""))
     v_boost = tk.StringVar(value=cfg.get("boost_key", ""))
@@ -326,14 +400,29 @@ def config_gui_thread():
     
     frame_grid1 = ttk.Frame(f_gen)
     frame_grid1.pack(fill="x", padx=10, pady=5)
+    
+    # Setup Input Modifier Key
     ttk.Label(frame_grid1, text="Modifier (Kopling) Key:").grid(row=0, column=0, sticky="w", pady=2)
-    ttk.Entry(frame_grid1, textvariable=v_mod, width=15).grid(row=0, column=1, sticky="e", pady=2)
-    ttk.Label(frame_grid1, text="Boost (Turbo) Key:").grid(row=1, column=0, sticky="w", pady=2)
-    ttk.Entry(frame_grid1, textvariable=v_boost, width=15).grid(row=1, column=1, sticky="e", pady=2)
-    ttk.Label(frame_grid1, text="Boost Multiplier (e.g. 1.5):").grid(row=2, column=0, sticky="w", pady=2)
-    ttk.Entry(frame_grid1, textvariable=v_mult, width=15).grid(row=2, column=1, sticky="e", pady=2)
+    f_mod = ttk.Frame(frame_grid1)
+    f_mod.grid(row=0, column=1, sticky="w")
+    ttk.Entry(f_mod, textvariable=v_mod, width=15, state="readonly").pack(side="left", padx=2)
+    ttk.Button(f_mod, text="Insert", width=6, command=lambda: assigner.start(v_mod)).pack(side="left")
+    ttk.Button(f_mod, text="X", width=2, command=lambda: v_mod.set("")).pack(side="left")
 
-    # Variables for Buttons
+    # Setup Input Boost Key
+    ttk.Label(frame_grid1, text="Boost (Turbo) Key:").grid(row=1, column=0, sticky="w", pady=2)
+    f_bst = ttk.Frame(frame_grid1)
+    f_bst.grid(row=1, column=1, sticky="w")
+    ttk.Entry(f_bst, textvariable=v_boost, width=15, state="readonly").pack(side="left", padx=2)
+    ttk.Button(f_bst, text="Insert", width=6, command=lambda: assigner.start(v_boost)).pack(side="left")
+    ttk.Button(f_bst, text="X", width=2, command=lambda: v_boost.set("")).pack(side="left")
+
+    # Setup Multiplier (Tetap manual karena angka)
+    ttk.Label(frame_grid1, text="Boost Multiplier (e.g. 1.5):").grid(row=2, column=0, sticky="w", pady=2)
+    ttk.Entry(frame_grid1, textvariable=v_mult, width=15).grid(row=2, column=1, sticky="w", padx=2, pady=2)
+
+
+    # --- TAB BUTTONS ---
     f_btn = ttk.Frame(notebook)
     notebook.add(f_btn, text="Buttons")
     btn_canvas = tk.Canvas(f_btn)
@@ -348,32 +437,48 @@ def config_gui_thread():
     btn_vars = {}
     for i, btn in enumerate(BTN_MAP.keys()):
         ttk.Label(scrollable_frame, text=btn).grid(row=i, column=0, sticky="w", padx=5, pady=2)
+        
         val = cfg.get("buttons", {}).get(btn, "")
         var = tk.StringVar(value=val)
-        ttk.Entry(scrollable_frame, textvariable=var, width=20).grid(row=i, column=1, padx=5, pady=2)
         btn_vars[btn] = var
+        
+        f_b = ttk.Frame(scrollable_frame)
+        f_b.grid(row=i, column=1, sticky="w", padx=5)
+        ttk.Entry(f_b, textvariable=var, width=20, state="readonly").pack(side="left", padx=2)
+        
+        # PENTING: Gunakan default parameter 'v=var' di lambda agar tidak ketimpa loop terakhir
+        ttk.Button(f_b, text="Insert", width=6, command=lambda v=var: assigner.start(v)).pack(side="left")
+        ttk.Button(f_b, text="X", width=2, command=lambda v=var: v.set("")).pack(side="left")
 
-    # Variables for Analog (Joysticks & Triggers)
+    # --- TAB ANALOG & TRIGGERS ---
     f_analog = ttk.Frame(notebook)
     notebook.add(f_analog, text="Analog & Triggers")
-    ttk.Label(f_analog, text="Format Keys: Pisahkan dengan koma (misal: 4, 7, 1)").grid(row=0, column=0, columnspan=3, pady=5)
     
     ttk.Label(f_analog, text="AXIS / TRIGGER", font=("", 9, "bold")).grid(row=1, column=0, sticky="w", padx=5)
-    ttk.Label(f_analog, text="KEYS", font=("", 9, "bold")).grid(row=1, column=1, sticky="w", padx=5)
-    ttk.Label(f_analog, text="VALUE", font=("", 9, "bold")).grid(row=1, column=2, sticky="w", padx=5)
+    ttk.Label(f_analog, text="KEYS MAP", font=("", 9, "bold")).grid(row=1, column=1, sticky="w", padx=5)
+    ttk.Label(f_analog, text="VALUE %", font=("", 9, "bold")).grid(row=1, column=2, sticky="w", padx=5)
 
     analog_vars = {}
     analog_items = list(cfg.get("joysticks", {}).items()) + list(cfg.get("triggers", {}).items())
     
     for i, (name, data) in enumerate(analog_items):
         ttk.Label(f_analog, text=name).grid(row=i+2, column=0, sticky="w", padx=5, pady=2)
+        
         keys_str = ", ".join(data.get("keys", [""]))
         var_keys = tk.StringVar(value=keys_str)
-        ttk.Entry(f_analog, textvariable=var_keys, width=15).grid(row=i+2, column=1, padx=5, pady=2)
-        
         var_val = tk.StringVar(value=data.get("value", "100%"))
-        ttk.Entry(f_analog, textvariable=var_val, width=8).grid(row=i+2, column=2, padx=5, pady=2)
         analog_vars[name] = {"keys": var_keys, "value": var_val}
+
+        f_a = ttk.Frame(f_analog)
+        f_a.grid(row=i+2, column=1, sticky="w", padx=5)
+        
+        ttk.Entry(f_a, textvariable=var_keys, width=16, state="readonly").pack(side="left", padx=2)
+        ttk.Button(f_a, text="Insert", width=6, command=lambda v=var_keys: assigner.start(v)).pack(side="left")
+        ttk.Button(f_a, text="+", width=2, command=lambda v=var_keys: assigner.start(v, append=True)).pack(side="left")
+        ttk.Button(f_a, text="X", width=2, command=lambda v=var_keys: v.set("")).pack(side="left")
+        
+        # Value bisa diketik manual
+        ttk.Entry(f_analog, textvariable=var_val, width=8).grid(row=i+2, column=2, padx=5, pady=2)
 
     def update_gui_from_dict(p_cfg, alert_name="Profile"):
         v_hold.set(p_cfg.get("hold_control", False))
@@ -402,7 +507,6 @@ def config_gui_thread():
     f_prof = ttk.Frame(notebook)
     notebook.add(f_prof, text="Profiles")
     
-    # Tombol Khusus Default Profile
     ttk.Button(f_prof, text="Load Default Profile (Reset)", command=load_default_profile).pack(fill="x", padx=10, pady=(10, 5))
     ttk.Separator(f_prof, orient='horizontal').pack(fill='x', pady=5, padx=10)
 
@@ -503,6 +607,7 @@ def config_gui_thread():
     # --- SAVE BUTTON GLOBAL ---
     def save_and_close():
         global is_gui_open
+        assigner.cancel()
         new_cfg = get_current_gui_state()
 
         with open(config_file, "w") as f:
