@@ -1,5 +1,5 @@
 {
-    "hold_control": false,
+    "hold_control": true,
     "modifier_key": "0",
     "boost_key": "enter",
     "boost_multiplier": 1.2,

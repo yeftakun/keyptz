@@ -191,14 +191,24 @@ def ptz_controller_loop():
             if is_pressed(joy_conf.get("RIGHT_Y_MIN", {}).get("keys", "")): cur_ry = parse_percentage(joy_conf.get("RIGHT_Y_MIN", {}).get("value", "100%"), -32768)
             elif is_pressed(joy_conf.get("RIGHT_Y_MAX", {}).get("keys", "")): cur_ry = parse_percentage(joy_conf.get("RIGHT_Y_MAX", {}).get("value", "100%"), 32767)
 
+            # --- PERUBAHAN LOGIKA HOLD CONTROL (OVERRIDE) ---
             if hold_ctrl:
                 if cur_btns: latched_btns.update(cur_btns)
-                if cur_lt != 0: latched_lt = cur_lt
-                if cur_rt != 0: latched_rt = cur_rt
-                if cur_lx != 0: latched_lx = cur_lx
-                if cur_ly != 0: latched_ly = cur_ly
-                if cur_rx != 0: latched_rx = cur_rx
-                if cur_ry != 0: latched_ry = cur_ry
+                
+                # Jika ada input Trigger baru, timpa seluruh state Trigger
+                if cur_lt != 0 or cur_rt != 0:
+                    latched_lt = cur_lt
+                    latched_rt = cur_rt
+                    
+                # Jika ada input Joystick Kiri baru, timpa seluruh state Joystick Kiri
+                if cur_lx != 0 or cur_ly != 0:
+                    latched_lx = cur_lx
+                    latched_ly = cur_ly
+                    
+                # Jika ada input Joystick Kanan baru, timpa seluruh state Joystick Kanan
+                if cur_rx != 0 or cur_ry != 0:
+                    latched_rx = cur_rx
+                    latched_ry = cur_ry
             else:
                 latched_btns = cur_btns
                 latched_lt, latched_rt = cur_lt, cur_rt
@@ -268,39 +278,32 @@ def exit_action(icon, item):
 
 def check_single_instance():
     """Mengecek apakah aplikasi sudah berjalan menggunakan Windows Mutex"""
-    # Nama unik untuk Mutex, pastikan spesifik untuk aplikasimu
     mutex_name = "KeyPTZ_vMix_Controller_Mutex_12345"
     kernel32 = ctypes.windll.kernel32
     
-    # Mencoba membuat Mutex
     mutex = kernel32.CreateMutexW(None, False, mutex_name)
     last_error = kernel32.GetLastError()
     
-    # ERROR_ALREADY_EXISTS di Windows memiliki kode error 183
     if last_error == 183:
         return False, None
         
     return True, mutex
 
 def main():
-    # 1. Cek apakah ini satu-satunya instance yang berjalan
     is_first_instance, mutex = check_single_instance()
     
     if not is_first_instance:
-        # Jika sudah berjalan, tampilkan peringatan dan langsung matikan proses ini
         show_already_running_alert()
         return
 
-    # 2. Jika aman, tampilkan pesan sukses
     show_startup_alert()
 
-    # 3. Jalankan aplikasi seperti biasa
     ptz_thread = threading.Thread(target=ptz_controller_loop, daemon=True)
     ptz_thread.start()
 
     tray_menu = pystray.Menu(
-        item('GitHub Repository', open_github),
-        item('Quit / Exit PTZ', exit_action)
+        item('GitHub', open_github),
+        item('Exit', exit_action)
     )
     tray_icon = pystray.Icon("PTZController", create_image(), "vMix PTZ Controller", tray_menu)
     tray_icon.run()
