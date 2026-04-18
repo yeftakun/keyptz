@@ -7,6 +7,8 @@ import threading
 import ctypes
 import webbrowser
 import pystray
+import tkinter as tk
+from tkinter import messagebox
 from pystray import MenuItem as item
 from PIL import Image, ImageDraw
 
@@ -92,6 +94,14 @@ def parse_percentage(val_input, raw_limit):
     except:
         return raw_limit 
 
+def show_startup_alert():
+    # Menampilkan Jendela Dialog Native Windows
+    root = tk.Tk()
+    root.withdraw() # Menyembunyikan jendela utama
+    root.attributes("-topmost", True) # Memastikan dialog muncul paling depan
+    messagebox.showinfo("Sukses", "KeyPTZ berjalan")
+    root.destroy()
+
 # --- 4. FUNGSI UTAMA (BACKGROUND PROCESS) ---
 def ptz_controller_loop():
     global is_running, gamepad
@@ -114,6 +124,11 @@ def ptz_controller_loop():
     last_modified_time = os.path.getmtime(config_file)
     with open(config_file, "r") as f: config = json.load(f)
 
+    # Variabel memori untuk fitur "Hold Control"
+    latched_lx, latched_ly, latched_rx, latched_ry = 0, 0, 0, 0
+    latched_lt, latched_rt = 0, 0
+    latched_btns = set()
+
     while is_running:
         # --- HOT RELOAD CONFIG ---
         try:
@@ -127,12 +142,11 @@ def ptz_controller_loop():
                     last_modified_time = current_modified_time
         except: pass 
 
+        hold_ctrl = config.get("hold_control", False)
         mod_key = config.get("modifier_key", "")
         boost_key = config.get("boost_key", "")
-        try:
-            boost_mult = float(config.get("boost_multiplier", 1.0))
-        except:
-            boost_mult = 1.0
+        try: boost_mult = float(config.get("boost_multiplier", 1.0))
+        except: boost_mult = 1.0
 
         btn_conf = config.get("buttons", {})
         trg_conf = config.get("triggers", {})
@@ -140,58 +154,75 @@ def ptz_controller_loop():
 
         phys_state = get_physical_gamepad_state(virtual_slot)
         
-        # --- LOGIKA KOPLING GANDA (DUAL CLUTCH) ---
         is_mod_pressed = is_pressed(mod_key)
         is_boost_pressed = is_pressed(boost_key)
         
-        # Keyboard aktif jika kopling 0 ditekan ATAU jika tidak ada kopling 0 yang disetting
         kb_active_normal = not mod_key or is_mod_pressed
-        
-        # Keyboard JUGA aktif jika tombol boost/enter ditekan
         kb_active = kb_active_normal or is_boost_pressed
         
-        kb_btns = {}
         lx_kb, ly_kb, rx_kb, ry_kb, lt_kb, rt_kb = 0, 0, 0, 0, 0, 0
         
         if kb_active:
-            # Multiplier aktif BILA HANYA boost_key ditekan (atau ditekan bersamaan mod_key)
             current_mult = boost_mult if is_boost_pressed else 1.0
 
+            # 1. Baca Input Real-Time dari Keyboard
+            cur_btns = set()
             for xbox_btn, kb_key in btn_conf.items():
                 if is_pressed(kb_key) and BTN_MAP.get(xbox_btn):
-                    kb_btns[BTN_MAP[xbox_btn]] = True
+                    cur_btns.add(BTN_MAP[xbox_btn])
                     
+            cur_lt, cur_rt = 0, 0
             lt_key = trg_conf.get("LEFT_TRIGGER", {}).get("keys", "")
-            if is_pressed(lt_key): lt_kb = parse_percentage(trg_conf.get("LEFT_TRIGGER", {}).get("value", "100%"), 255)
-            
+            if is_pressed(lt_key): cur_lt = parse_percentage(trg_conf.get("LEFT_TRIGGER", {}).get("value", "100%"), 255)
             rt_key = trg_conf.get("RIGHT_TRIGGER", {}).get("keys", "")
-            if is_pressed(rt_key): rt_kb = parse_percentage(trg_conf.get("RIGHT_TRIGGER", {}).get("value", "100%"), 255)
+            if is_pressed(rt_key): cur_rt = parse_percentage(trg_conf.get("RIGHT_TRIGGER", {}).get("value", "100%"), 255)
 
-            if is_pressed(joy_conf.get("LEFT_X_MIN", {}).get("keys", "")): lx_kb = parse_percentage(joy_conf.get("LEFT_X_MIN", {}).get("value", "100%"), -32768)
-            elif is_pressed(joy_conf.get("LEFT_X_MAX", {}).get("keys", "")): lx_kb = parse_percentage(joy_conf.get("LEFT_X_MAX", {}).get("value", "100%"), 32767)
-            
-            if is_pressed(joy_conf.get("LEFT_Y_MIN", {}).get("keys", "")): ly_kb = parse_percentage(joy_conf.get("LEFT_Y_MIN", {}).get("value", "100%"), -32768)
-            elif is_pressed(joy_conf.get("LEFT_Y_MAX", {}).get("keys", "")): ly_kb = parse_percentage(joy_conf.get("LEFT_Y_MAX", {}).get("value", "100%"), 32767)
+            cur_lx, cur_ly, cur_rx, cur_ry = 0, 0, 0, 0
+            if is_pressed(joy_conf.get("LEFT_X_MIN", {}).get("keys", "")): cur_lx = parse_percentage(joy_conf.get("LEFT_X_MIN", {}).get("value", "100%"), -32768)
+            elif is_pressed(joy_conf.get("LEFT_X_MAX", {}).get("keys", "")): cur_lx = parse_percentage(joy_conf.get("LEFT_X_MAX", {}).get("value", "100%"), 32767)
+            if is_pressed(joy_conf.get("LEFT_Y_MIN", {}).get("keys", "")): cur_ly = parse_percentage(joy_conf.get("LEFT_Y_MIN", {}).get("value", "100%"), -32768)
+            elif is_pressed(joy_conf.get("LEFT_Y_MAX", {}).get("keys", "")): cur_ly = parse_percentage(joy_conf.get("LEFT_Y_MAX", {}).get("value", "100%"), 32767)
 
-            if is_pressed(joy_conf.get("RIGHT_X_MIN", {}).get("keys", "")): rx_kb = parse_percentage(joy_conf.get("RIGHT_X_MIN", {}).get("value", "100%"), -32768)
-            elif is_pressed(joy_conf.get("RIGHT_X_MAX", {}).get("keys", "")): rx_kb = parse_percentage(joy_conf.get("RIGHT_X_MAX", {}).get("value", "100%"), 32767)
-            
-            if is_pressed(joy_conf.get("RIGHT_Y_MIN", {}).get("keys", "")): ry_kb = parse_percentage(joy_conf.get("RIGHT_Y_MIN", {}).get("value", "100%"), -32768)
-            elif is_pressed(joy_conf.get("RIGHT_Y_MAX", {}).get("keys", "")): ry_kb = parse_percentage(joy_conf.get("RIGHT_Y_MAX", {}).get("value", "100%"), 32767)
+            if is_pressed(joy_conf.get("RIGHT_X_MIN", {}).get("keys", "")): cur_rx = parse_percentage(joy_conf.get("RIGHT_X_MIN", {}).get("value", "100%"), -32768)
+            elif is_pressed(joy_conf.get("RIGHT_X_MAX", {}).get("keys", "")): cur_rx = parse_percentage(joy_conf.get("RIGHT_X_MAX", {}).get("value", "100%"), 32767)
+            if is_pressed(joy_conf.get("RIGHT_Y_MIN", {}).get("keys", "")): cur_ry = parse_percentage(joy_conf.get("RIGHT_Y_MIN", {}).get("value", "100%"), -32768)
+            elif is_pressed(joy_conf.get("RIGHT_Y_MAX", {}).get("keys", "")): cur_ry = parse_percentage(joy_conf.get("RIGHT_Y_MAX", {}).get("value", "100%"), 32767)
 
-            # --- APLIKASIKAN BOOST MULTIPLIER & CLAMPING ---
-            lt_kb = min(255, int(lt_kb * current_mult))
-            rt_kb = min(255, int(rt_kb * current_mult))
+            # 2. Logika "Cruise Control" (Hold Control)
+            if hold_ctrl:
+                if cur_btns: latched_btns.update(cur_btns)
+                if cur_lt != 0: latched_lt = cur_lt
+                if cur_rt != 0: latched_rt = cur_rt
+                if cur_lx != 0: latched_lx = cur_lx
+                if cur_ly != 0: latched_ly = cur_ly
+                if cur_rx != 0: latched_rx = cur_rx
+                if cur_ry != 0: latched_ry = cur_ry
+            else:
+                latched_btns = cur_btns
+                latched_lt, latched_rt = cur_lt, cur_rt
+                latched_lx, latched_ly = cur_lx, cur_ly
+                latched_rx, latched_ry = cur_rx, cur_ry
+
+            # 3. Aplikasikan Multiplier Boost pada nilai yang terkunci
+            lt_kb = min(255, int(latched_lt * current_mult))
+            rt_kb = min(255, int(latched_rt * current_mult))
             
-            lx_kb = max(-32768, min(32767, int(lx_kb * current_mult)))
-            ly_kb = max(-32768, min(32767, int(ly_kb * current_mult)))
-            rx_kb = max(-32768, min(32767, int(rx_kb * current_mult)))
-            ry_kb = max(-32768, min(32767, int(ry_kb * current_mult)))
+            lx_kb = max(-32768, min(32767, int(latched_lx * current_mult)))
+            ly_kb = max(-32768, min(32767, int(latched_ly * current_mult)))
+            rx_kb = max(-32768, min(32767, int(latched_rx * current_mult)))
+            ry_kb = max(-32768, min(32767, int(latched_ry * current_mult)))
+
+        else:
+            # Jika kopling dilepas, RESET semua memori "Cruise Control"
+            latched_btns.clear()
+            latched_lt, latched_rt = 0, 0
+            latched_lx, latched_ly, latched_rx, latched_ry = 0, 0, 0, 0
+            lx_kb, ly_kb, rx_kb, ry_kb, lt_kb, rt_kb = 0, 0, 0, 0, 0, 0
 
         # --- C. PENGGABUNGAN (MERGE) & UPDATE KE VIRTUAL GAMEPAD ---
         for btn_name, btn_val in BTN_MAP.items():
             is_phys = phys_state and (phys_state.wButtons & btn_val)
-            if kb_btns.get(btn_val) or is_phys:
+            if (btn_val in latched_btns) or is_phys:
                 gamepad.press_button(button=btn_val)
             else:
                 gamepad.release_button(button=btn_val)
@@ -229,7 +260,7 @@ def create_image():
     return image
 
 def open_github(icon, item):
-    webbrowser.open("https://github.com/yeftakun/keyptz")
+    webbrowser.open("https://github.com/yeftakun/key2xbox")
 
 def exit_action(icon, item):
     global is_running
@@ -237,6 +268,9 @@ def exit_action(icon, item):
     icon.stop()         
 
 def main():
+    # Tampilkan pesan Alert sebelum program masuk ke Background Thread
+    show_startup_alert()
+
     ptz_thread = threading.Thread(target=ptz_controller_loop, daemon=True)
     ptz_thread.start()
 
