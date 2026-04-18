@@ -11,9 +11,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from pystray import MenuItem as item
 from PIL import Image, ImageDraw
-import glob
 
-# --- 1. SETUP XINPUT API ---
+# --- 1. SETUP XINPUT API UNTUK MEMBACA STIK FISIK ---
 xinput = None
 for dll in ('xinput1_4.dll', 'xinput9_1_0.dll', 'xinput1_3.dll'):
     try:
@@ -54,7 +53,7 @@ def get_physical_gamepad_state(exclude_slot):
             return state.Gamepad
     return None
 
-# --- 2. MAPPING KONSTANTA XBOX ---
+# --- 2. MAPPING KONSTANTA & DEFAULT PROFILE ---
 BTN_MAP = {
     "DPAD_UP": vg.XUSB_BUTTON.XUSB_GAMEPAD_DPAD_UP,
     "DPAD_DOWN": vg.XUSB_BUTTON.XUSB_GAMEPAD_DPAD_DOWN,
@@ -73,11 +72,38 @@ BTN_MAP = {
     "Y": vg.XUSB_BUTTON.XUSB_GAMEPAD_Y
 }
 
+DEFAULT_PROFILE = {
+    "hold_control": False,
+    "modifier_key": "0",
+    "boost_key": "enter",
+    "boost_multiplier": 1.2,
+    "buttons": {
+        "DPAD_UP": "", "DPAD_DOWN": "", "DPAD_LEFT": "", "DPAD_RIGHT": "",
+        "START": "", "BACK": "", "LEFT_THUMB_CLICK": "", "RIGHT_THUMB_CLICK": "",
+        "LEFT_BUMPER": "", "RIGHT_BUMPER": "", "GUIDE": "",
+        "A": "Tab", "B": "", "X": "", "Y": ""
+    },
+    "triggers": {
+        "LEFT_TRIGGER": { "keys": [""], "value": "26" },
+        "RIGHT_TRIGGER": { "keys": [""], "value": "26" }
+    },
+    "joysticks": {
+        "LEFT_X_MIN": { "keys": ["4"], "value": "26" },
+        "LEFT_X_MAX": { "keys": ["6"], "value": "26" },
+        "LEFT_Y_MIN": { "keys": ["2"], "value": "26" },
+        "LEFT_Y_MAX": { "keys": ["8"], "value": "26" },
+        "RIGHT_X_MIN": { "keys": [""], "value": "26" },
+        "RIGHT_X_MAX": { "keys": [""], "value": "26" },
+        "RIGHT_Y_MIN": { "keys": ["-"], "value": "26" },
+        "RIGHT_Y_MAX": { "keys": ["+"], "value": "26" }
+    }
+}
+
 is_running = True
 is_gui_open = False
 gamepad = None
 
-# --- 3. FUNGSI UTILITAS ---
+# --- 3. FUNGSI UTILITAS & UI ---
 def is_pressed(key_input):
     if not key_input: return False
     try:
@@ -95,6 +121,20 @@ def parse_percentage(val_input, raw_limit):
         return int((pct / 100.0) * raw_limit)
     except:
         return raw_limit 
+
+def show_startup_alert():
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
+    messagebox.showinfo("Sukses", "KeyPTZ berjalan")
+    root.destroy()
+
+def show_already_running_alert():
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
+    messagebox.showwarning("Peringatan", "KeyPTZ sebelumnya sudah berjalan")
+    root.destroy()
 
 # --- 4. FUNGSI UTAMA (BACKGROUND PROCESS) ---
 def ptz_controller_loop():
@@ -181,12 +221,18 @@ def ptz_controller_loop():
 
             if hold_ctrl:
                 if cur_btns: latched_btns.update(cur_btns)
+                
                 if cur_lt != 0 or cur_rt != 0:
-                    latched_lt, latched_rt = cur_lt, cur_rt
+                    latched_lt = cur_lt
+                    latched_rt = cur_rt
+                    
                 if cur_lx != 0 or cur_ly != 0:
-                    latched_lx, latched_ly = cur_lx, cur_ly
+                    latched_lx = cur_lx
+                    latched_ly = cur_ly
+                    
                 if cur_rx != 0 or cur_ry != 0:
-                    latched_rx, latched_ry = cur_rx, cur_ry
+                    latched_rx = cur_rx
+                    latched_ry = cur_ry
             else:
                 latched_btns = cur_btns
                 latched_lt, latched_rt = cur_lt, cur_rt
@@ -239,6 +285,7 @@ def ptz_controller_loop():
         gamepad.reset()
         gamepad.update()
 
+
 # --- 5. GUI EDITOR DENGAN PROFILE SYSTEM ---
 def config_gui_thread():
     global is_gui_open
@@ -247,7 +294,6 @@ def config_gui_thread():
     config_file = os.path.join(base_path, "config.json")
     profile_dir = os.path.join(base_path, "profile")
     
-    # Pastikan folder profile ada
     os.makedirs(profile_dir, exist_ok=True)
     
     with open(config_file, "r") as f:
@@ -329,15 +375,42 @@ def config_gui_thread():
         ttk.Entry(f_analog, textvariable=var_val, width=8).grid(row=i+2, column=2, padx=5, pady=2)
         analog_vars[name] = {"keys": var_keys, "value": var_val}
 
+    def update_gui_from_dict(p_cfg, alert_name="Profile"):
+        v_hold.set(p_cfg.get("hold_control", False))
+        v_mod.set(p_cfg.get("modifier_key", ""))
+        v_boost.set(p_cfg.get("boost_key", ""))
+        v_mult.set(str(p_cfg.get("boost_multiplier", 1.2)))
+
+        for btn in BTN_MAP.keys():
+            val = p_cfg.get("buttons", {}).get(btn, "")
+            btn_vars[btn].set(val)
+
+        for name, vars_dict in analog_vars.items():
+            if "TRIGGER" in name: data = p_cfg.get("triggers", {}).get(name, {})
+            else: data = p_cfg.get("joysticks", {}).get(name, {})
+            
+            keys_str = ", ".join(data.get("keys", [""]))
+            vars_dict["keys"].set(keys_str)
+            vars_dict["value"].set(data.get("value", "100%"))
+
+        messagebox.showinfo("Dimuat", f"'{alert_name}' telah dimuat ke editor.\nKlik 'Save & Apply' untuk mengaktifkannya.")
+
+    def load_default_profile():
+        update_gui_from_dict(DEFAULT_PROFILE, "Default (Bawaan)")
+
     # --- TAB PROFILES ---
     f_prof = ttk.Frame(notebook)
     notebook.add(f_prof, text="Profiles")
     
-    ttk.Label(f_prof, text="Available Profiles:", font=("", 10, "bold")).pack(anchor="w", padx=10, pady=(10,0))
+    # Tombol Khusus Default Profile
+    ttk.Button(f_prof, text="Load Default Profile (Reset)", command=load_default_profile).pack(fill="x", padx=10, pady=(10, 5))
+    ttk.Separator(f_prof, orient='horizontal').pack(fill='x', pady=5, padx=10)
+
+    ttk.Label(f_prof, text="Available Profiles:", font=("", 10, "bold")).pack(anchor="w", padx=10)
     
     listbox_frame = ttk.Frame(f_prof)
     listbox_frame.pack(fill="both", expand=True, padx=10, pady=5)
-    profile_listbox = tk.Listbox(listbox_frame, height=8)
+    profile_listbox = tk.Listbox(listbox_frame, height=6)
     profile_listbox.pack(side="left", fill="both", expand=True)
     listbox_scroll = ttk.Scrollbar(listbox_frame, orient="vertical", command=profile_listbox.yview)
     listbox_scroll.pack(side="right", fill="y")
@@ -352,7 +425,6 @@ def config_gui_thread():
     refresh_profile_list()
 
     def get_current_gui_state():
-        """Mengambil semua nilai dari form GUI saat ini menjadi Dictionary JSON"""
         try: mult_val = float(v_mult.get())
         except: mult_val = 1.0
 
@@ -385,31 +457,18 @@ def config_gui_thread():
         with open(p_path, "r") as f:
             p_cfg = json.load(f)
 
-        # Update GUI Variables
-        v_hold.set(p_cfg.get("hold_control", False))
-        v_mod.set(p_cfg.get("modifier_key", ""))
-        v_boost.set(p_cfg.get("boost_key", ""))
-        v_mult.set(str(p_cfg.get("boost_multiplier", 1.2)))
-
-        for btn in BTN_MAP.keys():
-            val = p_cfg.get("buttons", {}).get(btn, "")
-            btn_vars[btn].set(val)
-
-        for name, vars_dict in analog_vars.items():
-            if "TRIGGER" in name: data = p_cfg.get("triggers", {}).get(name, {})
-            else: data = p_cfg.get("joysticks", {}).get(name, {})
-            
-            keys_str = ", ".join(data.get("keys", [""]))
-            vars_dict["keys"].set(keys_str)
-            vars_dict["value"].set(data.get("value", "100%"))
-
-        messagebox.showinfo("Profile Dimuat", f"Profile '{p_name}' telah dimuat ke editor.\nKlik 'Save & Apply' untuk menggunakannya di vMix.")
+        update_gui_from_dict(p_cfg, f"Profile '{p_name}'")
 
     def save_as_new_profile():
         p_name = entry_new_prof.get().strip()
         if not p_name:
             messagebox.showwarning("Nama Kosong", "Masukkan nama profile baru!")
             return
+            
+        if p_name.lower() in ["default", "default.json"]:
+            messagebox.showwarning("Ditolak", "Nama 'Default' dilindungi dan tidak bisa ditimpa. Gunakan nama lain.")
+            return
+            
         if not p_name.lower().endswith(".json"):
             p_name += ".json"
             
@@ -421,20 +480,20 @@ def config_gui_thread():
             
         entry_new_prof.delete(0, tk.END)
         refresh_profile_list()
-        messagebox.showinfo("Tersimpan", f"Profile disimpan sebagai '{p_name}' di folder profile.")
+        messagebox.showinfo("Tersimpan", f"Profile disimpan sebagai '{p_name}'.")
 
     def delete_selected_profile():
         sel = profile_listbox.curselection()
         if not sel: return
         p_name = profile_listbox.get(sel[0])
-        if messagebox.askyesno("Konfirmasi Hapus", f"Apakah Anda yakin ingin menghapus profile '{p_name}'?"):
+        if messagebox.askyesno("Konfirmasi", f"Hapus profile '{p_name}'?"):
             os.remove(os.path.join(profile_dir, p_name))
             refresh_profile_list()
 
     ttk.Button(f_prof, text="Load Selected Profile to Editor", command=load_selected_profile).pack(fill="x", padx=10, pady=2)
     ttk.Button(f_prof, text="Delete Selected Profile", command=delete_selected_profile).pack(fill="x", padx=10, pady=2)
     
-    ttk.Separator(f_prof, orient='horizontal').pack(fill='x', pady=15, padx=10)
+    ttk.Separator(f_prof, orient='horizontal').pack(fill='x', pady=10, padx=10)
     
     ttk.Label(f_prof, text="Save Current Editor as New Profile:").pack(anchor="w", padx=10)
     entry_new_prof = ttk.Entry(f_prof)
