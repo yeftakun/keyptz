@@ -678,9 +678,9 @@ def main():
     ptz_thread.start()
 
     tray_menu = pystray.Menu(
-        item('Config / Edit JSON', open_config),
-        item('GitHub Repository', open_github),
-        item('Quit / Exit', exit_action)
+        item('Config Key', open_config),
+        item('GitHub', open_github),
+        item('Exit', exit_action)
     )
     tray_icon = pystray.Icon("PTZController", create_image(), "vMix PTZ Controller", tray_menu)
     tray_icon.run()
