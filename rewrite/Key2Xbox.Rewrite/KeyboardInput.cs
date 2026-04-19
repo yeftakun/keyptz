@@ -71,6 +71,17 @@ public static class KeyboardInput
             if (NameToKey.TryGetValue(normalized, out var key))
             {
                 yield return key;
+
+                // Accept both top-row and numpad variants for +/- shortcuts.
+                if (key == Keys.Oemplus)
+                {
+                    yield return Keys.Add;
+                }
+                else if (key == Keys.OemMinus)
+                {
+                    yield return Keys.Subtract;
+                }
+
                 continue;
             }
 
@@ -86,6 +97,7 @@ public static class KeyboardInput
                 if (char.IsDigit(c))
                 {
                     yield return Keys.D0 + (c - '0');
+                    yield return Keys.NumPad0 + (c - '0');
                 }
             }
         }
@@ -126,7 +138,22 @@ public static class KeyboardInput
             ["6"] = Keys.D6,
             ["7"] = Keys.D7,
             ["8"] = Keys.D8,
-            ["9"] = Keys.D9
+            ["9"] = Keys.D9,
+            ["numpad0"] = Keys.NumPad0,
+            ["numpad1"] = Keys.NumPad1,
+            ["numpad2"] = Keys.NumPad2,
+            ["numpad3"] = Keys.NumPad3,
+            ["numpad4"] = Keys.NumPad4,
+            ["numpad5"] = Keys.NumPad5,
+            ["numpad6"] = Keys.NumPad6,
+            ["numpad7"] = Keys.NumPad7,
+            ["numpad8"] = Keys.NumPad8,
+            ["numpad9"] = Keys.NumPad9,
+            ["add"] = Keys.Add,
+            ["subtract"] = Keys.Subtract,
+            ["multiply"] = Keys.Multiply,
+            ["divide"] = Keys.Divide,
+            ["decimal"] = Keys.Decimal
         };
     }
 }

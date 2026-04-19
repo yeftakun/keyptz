@@ -33,7 +33,6 @@ public sealed class ConfigEditorForm : Form
 
     private TextBox? _captureTarget;
     private string _captureOld = string.Empty;
-    private bool _captureAppend;
     private readonly System.Windows.Forms.Timer _captureTimer = new() { Interval = 5000 };
 
     private static readonly string[] ButtonOrder =
@@ -213,7 +212,7 @@ public sealed class ConfigEditorForm : Form
             };
 
             _analogBoxes[axis] = (keyBox, valBox);
-            panel.Controls.Add(WrapCaptureButtons(keyBox, true), 1, row);
+            panel.Controls.Add(WrapCaptureButtons(keyBox), 1, row);
             panel.Controls.Add(valBox, 2, row);
             row++;
         }
@@ -270,7 +269,7 @@ public sealed class ConfigEditorForm : Form
         return tab;
     }
 
-    private Control WrapCaptureButtons(TextBox box, bool allowAppend = false)
+    private Control WrapCaptureButtons(TextBox box)
     {
         var panel = new FlowLayoutPanel
         {
@@ -280,17 +279,10 @@ public sealed class ConfigEditorForm : Form
         };
 
         var insert = new Button { Text = "Insert", Width = 60 };
-        insert.Click += (_, _) => BeginCapture(box, false);
+        insert.Click += (_, _) => BeginCapture(box);
 
         panel.Controls.Add(box);
         panel.Controls.Add(insert);
-
-        if (allowAppend)
-        {
-            var append = new Button { Text = "+", Width = 30 };
-            append.Click += (_, _) => BeginCapture(box, true);
-            panel.Controls.Add(append);
-        }
 
         var clear = new Button { Text = "X", Width = 30 };
         clear.Click += (_, _) =>
@@ -303,12 +295,11 @@ public sealed class ConfigEditorForm : Form
         return panel;
     }
 
-    private void BeginCapture(TextBox target, bool append)
+    private void BeginCapture(TextBox target)
     {
         CancelCapture();
         _captureTarget = target;
         _captureOld = target.Text;
-        _captureAppend = append;
         target.Text = "< Menunggu 5d... >";
         _captureTimer.Start();
     }
@@ -356,21 +347,7 @@ public sealed class ConfigEditorForm : Form
         }
 
         var keyName = KeyboardInput.ToConfigKeyName(e.KeyCode);
-
-        if (_captureAppend && !string.IsNullOrWhiteSpace(_captureOld))
-        {
-            var keys = KeyboardInput.SplitKeys(_captureOld);
-            if (!keys.Contains(keyName, StringComparer.OrdinalIgnoreCase))
-            {
-                keys.Add(keyName);
-            }
-
-            _captureTarget.Text = string.Join(", ", keys);
-        }
-        else
-        {
-            _captureTarget.Text = keyName;
-        }
+        _captureTarget.Text = keyName;
 
         _captureTarget = null;
         CheckDuplicates();
