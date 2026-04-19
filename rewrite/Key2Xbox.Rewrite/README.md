@@ -1,4 +1,6 @@
-# Key2Xbox.Rewrite (.NET C#)
+# keyPTZ-desktop (.NET C#)
+
+Version: v0.1.0
 
 Rewrite dari project Python ke .NET C# (WinForms + System Tray) dengan fitur setara:
 
@@ -15,7 +17,7 @@ Rewrite dari project Python ke .NET C# (WinForms + System Tray) dengan fitur set
 ```powershell
 dotnet build
 cd bin\Debug\net8.0-windows
-dotnet Key2Xbox.Rewrite.dll
+dotnet keyPTZ-desktop.dll
 ```
 
 Saat aplikasi berjalan, gunakan icon tray untuk membuka menu `Config`, `GitHub`, atau `Exit`.

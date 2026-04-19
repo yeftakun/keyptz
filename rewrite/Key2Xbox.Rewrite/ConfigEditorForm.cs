@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace Key2Xbox.Rewrite;
+namespace KeyPTZ.Desktop;
 
 public sealed class ConfigEditorForm : Form
 {

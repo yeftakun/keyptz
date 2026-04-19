@@ -2,7 +2,7 @@ using Nefarius.ViGEm.Client;
 using Nefarius.ViGEm.Client.Targets;
 using Nefarius.ViGEm.Client.Targets.Xbox360;
 
-namespace Key2Xbox.Rewrite;
+namespace KeyPTZ.Desktop;
 
 public sealed class ControllerService : IDisposable
 {

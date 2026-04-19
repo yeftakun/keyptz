@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Windows.Forms;
 
-namespace Key2Xbox.Rewrite;
+namespace KeyPTZ.Desktop;
 
 internal static class Program
 {

@@ -1,6 +1,6 @@
 using Newtonsoft.Json;
 
-namespace Key2Xbox.Rewrite;
+namespace KeyPTZ.Desktop;
 
 public sealed class AppConfig
 {

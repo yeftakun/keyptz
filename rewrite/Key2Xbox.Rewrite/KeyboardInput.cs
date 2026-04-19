@@ -1,6 +1,6 @@
 using System.Windows.Forms;
 
-namespace Key2Xbox.Rewrite;
+namespace KeyPTZ.Desktop;
 
 public static class KeyboardInput
 {

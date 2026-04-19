@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Key2Xbox.Rewrite;
+namespace KeyPTZ.Desktop;
 
 internal static class NativeMethods
 {
