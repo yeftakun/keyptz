@@ -418,7 +418,10 @@ public sealed class ConfigEditorForm : Form
                 source = config.Joysticks.TryGetValue(axis, out var v) ? v : new AxisBinding();
             }
 
-            _analogBoxes[axis].keys.Text = string.Join(", ", source.Keys);
+            var visibleKeys = source.Keys
+                .Where(k => !string.IsNullOrWhiteSpace(k))
+                .Select(k => k.Trim());
+            _analogBoxes[axis].keys.Text = string.Join(", ", visibleKeys);
             _analogBoxes[axis].value.Text = source.Value;
         }
 
