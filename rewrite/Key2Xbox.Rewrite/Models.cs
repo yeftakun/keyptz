@@ -8,10 +8,10 @@ public sealed class AppConfig
     public bool HoldControl { get; set; }
 
     [JsonProperty("modifier_key")]
-    public string ModifierKey { get; set; } = "0";
+    public string ModifierKey { get; set; } = "numpad0";
 
     [JsonProperty("boost_key")]
-    public string BoostKey { get; set; } = "enter";
+    public string BoostKey { get; set; } = "numpad1";
 
     [JsonProperty("boost_multiplier")]
     public double BoostMultiplier { get; set; } = 1.3;
@@ -30,8 +30,8 @@ public sealed class AppConfig
         return new AppConfig
         {
             HoldControl = false,
-            ModifierKey = "0",
-            BoostKey = "enter",
+            ModifierKey = "numpad0",
+            BoostKey = "numpad1",
             BoostMultiplier = 1.3,
             Buttons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -46,7 +46,7 @@ public sealed class AppConfig
                 ["LEFT_BUMPER"] = "",
                 ["RIGHT_BUMPER"] = "",
                 ["GUIDE"] = "",
-                ["A"] = "Tab",
+                ["A"] = "multiply",
                 ["B"] = "",
                 ["X"] = "",
                 ["Y"] = ""
@@ -58,10 +58,10 @@ public sealed class AppConfig
             },
             Joysticks = new Dictionary<string, AxisBinding>(StringComparer.OrdinalIgnoreCase)
             {
-                ["LEFT_X_MIN"] = new AxisBinding { Keys = new List<string> { "4" }, Value = "26" },
-                ["LEFT_X_MAX"] = new AxisBinding { Keys = new List<string> { "6" }, Value = "26" },
-                ["LEFT_Y_MIN"] = new AxisBinding { Keys = new List<string> { "2" }, Value = "26" },
-                ["LEFT_Y_MAX"] = new AxisBinding { Keys = new List<string> { "8" }, Value = "26" },
+                ["LEFT_X_MIN"] = new AxisBinding { Keys = new List<string> { "numpad4" }, Value = "26" },
+                ["LEFT_X_MAX"] = new AxisBinding { Keys = new List<string> { "numpad6" }, Value = "26" },
+                ["LEFT_Y_MIN"] = new AxisBinding { Keys = new List<string> { "numpad2" }, Value = "26" },
+                ["LEFT_Y_MAX"] = new AxisBinding { Keys = new List<string> { "numpad8" }, Value = "26" },
                 ["RIGHT_X_MIN"] = new AxisBinding { Keys = new List<string> { "" }, Value = "26" },
                 ["RIGHT_X_MAX"] = new AxisBinding { Keys = new List<string> { "" }, Value = "26" },
                 ["RIGHT_Y_MIN"] = new AxisBinding { Keys = new List<string> { "-" }, Value = "50" },
