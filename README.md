@@ -1,5 +1,7 @@
 # KeyPTZ - Keyboard to Virtual Xbox 360 Controller for vMix PTZ Control
 
+Versi stabil di aplikasi desktop [keyptz-desktop](https://github.com/yeftakun/keyptz-desktop)
+
 Dibuat untuk fleksibilitas penggunaan keyboard sebagai pengontrol kamera PTZ di aplikasi vMix. Operator dapat dengan mudah mengubah input keyboard menjadi sinyal Virtual Xbox 360, memungkinkan pergerakan kamera yang lebih fleksibel.
 
 **Fitur Utama:**
